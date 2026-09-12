@@ -19,11 +19,15 @@ test("the tutor puts what it is asked onto the sidebar", async ({ page }) => {
   await expect(page).toHaveURL("/");
 
   const sidebar = page.getByRole("complementary");
-  await expect(sidebar.getByText("Nothing on it yet.")).toBeVisible();
+  await expect(
+    sidebar.getByText(
+      "Nothing on the list yet. Ask Bartholomew to note something down.",
+    ),
+  ).toBeVisible();
 
   const input = page.getByPlaceholder("Add something to the list…");
   await input.fill("Please add 'buy milk' to my list.");
-  // The composer's send button; Enter in the textarea does not submit.
+  // Submit through the composer's send button.
   await page.getByTestId("copilot-send-button").click();
 
   // Cleared means the composer accepted it and the run is under way.
