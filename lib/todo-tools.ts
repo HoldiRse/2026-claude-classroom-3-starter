@@ -38,9 +38,9 @@ const todoShape = z.object({
 
 /**
  * The one read of the list, shared by the `listTodos` tool and the sidebar's
- * own route so both show the same thing. Ties are possible because created_at
- * is whole seconds, so id breaks them: the order is stable across queries even
- * when it is not insertion order.
+ * own route so both show the same thing. created_at has millisecond precision,
+ * so the list comes back in insertion order; id breaks the rare tie so the
+ * order is stable across queries.
  */
 export function listTodosFor(db: TodoDb, userId: string) {
   return db
