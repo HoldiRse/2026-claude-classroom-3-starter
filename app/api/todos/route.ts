@@ -1,18 +1,48 @@
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
+import { apiSession, errorResponse, parseJsonBody } from "@/lib/api-session";
 import { db } from "@/lib/db";
-import { listTodosFor } from "@/lib/todo-tools";
+import {
+  createTodoRequestSchema,
+  type ListTodosResponse,
+  listTodosQuerySchema,
+  type TodoResponse,
+} from "@/lib/todo-api-schema";
+import { addTodoFor, listTodosFor } from "@/lib/todo-tools";
 
 /**
- * The sidebar's read path, and read-only on purpose: the agent owns every
- * write, so there is no POST or PATCH here. Same query the `listTodos` tool
- * runs, on the same session-derived user id.
+ * The list, for CLIs over a bearer token and for the sidebar over its cookie.
+ * Same query the `listTodos` tool runs, on the session-derived user id.
  */
-export async function GET() {
-  const session = await auth.api.getSession({ headers: await headers() });
+export async function GET(request: Request) {
+  const session = await apiSession(request, { allowCookie: true });
   if (!session) {
-    return Response.json({ error: "unauthorized" }, { status: 401 });
+    return errorResponse(401, "unauthorized");
   }
 
-  return Response.json({ todos: await listTodosFor(db, session.user.id) });
+  const query = listTodosQuerySchema.safeParse(
+    Object.fromEntries(new URL(request.url).searchParams),
+  );
+  if (!query.success) {
+    return errorResponse(400, "invalid_request", query.error.issues);
+  }
+
+  const todos = await listTodosFor(db, session.user.id, {
+    query: query.data.q,
+  });
+  return Response.json({ todos } satisfies ListTodosResponse);
+}
+
+/** Bearer only: the browser's write path is the agent. */
+export async function POST(request: Request) {
+  const session = await apiSession(request, { allowCookie: false });
+  if (!session) {
+    return errorResponse(401, "unauthorized");
+  }
+
+  const body = await parseJsonBody(request, createTodoRequestSchema);
+  if (!body.success) {
+    return errorResponse(400, "invalid_request", body.error.issues);
+  }
+
+  const todo = await addTodoFor(db, session.user.id, body.data.title);
+  return Response.json({ todo } satisfies TodoResponse, { status: 201 });
 }
