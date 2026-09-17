@@ -2,18 +2,17 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  errorResponseSchema,
+  listTodosResponseSchema,
+  todoResponseSchema,
+} from "@ai-tutor/todo-api-schema";
 import { betterAuth } from "better-auth";
 import { type TestHelpers, testUtils } from "better-auth/plugins";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { drizzle } from "drizzle-orm/libsql/node";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
-
 import { authOptions } from "@/lib/auth-config";
-import {
-  errorResponseSchema,
-  listTodosResponseSchema,
-  todoResponseSchema,
-} from "@/lib/todo-api-schema";
 
 // The routes import lib/auth and lib/db, which are `server-only` and open
 // DATABASE_URL on import; the stub lets them load, and the env below points

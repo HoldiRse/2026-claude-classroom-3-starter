@@ -1,11 +1,11 @@
-import { apiSession, errorResponse, parseJsonBody } from "@/lib/api-session";
-import { db } from "@/lib/db";
 import {
   createTodoRequestSchema,
   type ListTodosResponse,
   listTodosQuerySchema,
   type TodoResponse,
-} from "@/lib/todo-api-schema";
+} from "@ai-tutor/todo-api-schema";
+import { apiSession, errorResponse, parseJsonBody } from "@/lib/api-session";
+import { db } from "@/lib/db";
 import { addTodoFor, listTodosFor } from "@/lib/todo-tools";
 
 /**

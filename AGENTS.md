@@ -12,6 +12,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra agent served to a CopilotKit chat over AG-UI, behind Better Auth email/password sign-in, over a Drizzle/SQLite persistence layer, with a Vitest + Playwright test harness.
 
+The repo is an npm workspace root: the web app is this directory, `cli/` is the `ai-tutor` command-line client, and `packages/todo-api-schema/` is the contract they share.
+
 ## Commands
 
 - If Turbopack fails to replace a symlink under `.next/dev/node_modules`, stop the server and remove that generated directory so it can recreate the links; copied build output can contain ordinary directories in their place.
@@ -21,6 +23,7 @@ AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra 
 - `npm test` (Vitest, single run), `npm run test:watch`, `npm run test:e2e` (Playwright), `npm run test:e2e:llm` (the one spec that spends OpenRouter credit).
 - `npm run db:generate` writes a migration from the schema and `npm run db:migrate` applies it to `DATABASE_URL`.
 - `npm run auth:generate` regenerates `lib/auth-schema.ts` from the Better Auth config; follow it with `db:generate` + `db:migrate`.
+- `npm install` at the root installs every workspace and builds the CLI through its `prepare` script, which is what makes `npx ai-tutor` work from here.
 
 ## App code — `app/layout.tsx`, `app/page.tsx`, `components/`
 
@@ -30,6 +33,8 @@ AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra 
 - `components/ui/` holds the presentational primitives (`auth-card`, `field`, `button`, `form-error`, `page-header`, `tool-call`); extend one instead of repeating its class string.
 - Shared primitives live in `components/ui/` and tokens and CopilotKit overrides in `app/globals.css`; document new design rules in `ai-tutor-design` before using them.
 - `/` is the chat page: a Server Component that gates on the session, then renders `PageHeader` plus the client-only `components/chat.tsx`.
+- `/device` is where `ai-tutor login` sends the user: it gates on the session, sending a signed-out visitor to `/login?next=`, then hands the code to `components/device-approval.tsx`, which verifies it (claiming it for this session) before offering Approve or Deny.
+- `/login` reads that `next` parameter off `window.location` at submit time rather than through `useSearchParams`, which would need a Suspense boundary, and follows it only when it is a path on this app.
 - `components/chat.tsx` owns the `CopilotKit` provider and lays out the chat beside `components/todos-sidebar.tsx`, which must stay inside that provider to reach `useAgent`.
 - The sidebar is read-only because the agent is the browser's write path: it renders the server-rendered `initialTodos`, then refetches `GET /api/todos` over its cookie whenever the run it subscribes to yields a tool result or ends.
 - It is also `hidden` below `md`, where its fixed 288px would leave the transcript about 90px; the tool-call rows report every change to the list anyway.
@@ -52,15 +57,27 @@ AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra 
 - `lib/auth.ts` is the app instance (explicitly `server-only`, `nextCookies()` last); `lib/auth-cli.ts` exists only because the Better Auth CLI refuses to load a module graph containing `server-only`.
 - Gate pages server-side with `auth.api.getSession({ headers: await headers() })` and `redirect()`; there is deliberately no `proxy.ts`, whose cookie check would not validate anything.
 - The `bearer()` plugin (no schema) turns `Authorization: Bearer <session token>` into the session cookie inside `getSession`, and every sign-in response carries that token in `set-auth-token`.
+- `deviceAuthorization(deviceAuthorizationOptions)` backs `ai-tutor login`: the CLI polls `/api/auth/device/token` for a session token while the user approves its code on `/device`, and `validateClient` accepts no client id but the CLI's.
+- Approving a code takes two calls, because `GET /api/auth/device` claims the pending code for the calling session and only that session may then approve or deny it.
 - The JWT plugin is for services that verify offline against JWKS and says itself it is no session replacement, and API keys need `@better-auth/api-key` plus a table, so both stay out until a client needs them.
 
-## REST API — `app/api/todos/`, `lib/todo-api-schema.ts`, `lib/api-session.ts`
+## REST API — `app/api/todos/`, `lib/api-session.ts`
 
 - `GET /api/todos?q=` lists (cookie or bearer), `POST /api/todos` creates (201), and `PATCH /api/todos/{id}` sets `done` (404 for another user's id), each a thin handler over the `lib/todo-tools.ts` queries.
-- `lib/todo-api-schema.ts` is the wire contract, imports only zod so a CLI can import it, and supplies the `todoSchema` the tools' output schemas use.
+- `@ai-tutor/todo-api-schema` (in `packages/todo-api-schema/`) is the wire contract, imports only zod so the CLI can import it, supplies the `todoSchema` the tools' output schemas use, and holds the CLI's `CLI_CLIENT_ID`.
 - `apiSession` hands writes only the `Authorization` header, so a browser's cookie can never authorize a POST or PATCH.
 - Handlers read `request.headers` rather than `next/headers`, so tests can call them directly.
 - Email/password only: when an auth change changes the schema, regenerate it and generate and apply the migration.
+
+## CLI — `cli/`, `packages/todo-api-schema/`
+
+- `cli/src/ai-tutor.ts` is the whole command surface (`login`, `whoami`, `logout`, `add`, `list`, `done`) on commander, and its `--help` is the CLI's documentation — keep it good enough to drive the tool from that alone.
+- `cli/bin/ai-tutor.js` is a committed wrapper around the generated `cli/dist/ai-tutor.js`, so `npm install` can link the bin before the `prepare` script has built anything.
+- `cli/build.mjs` bundles with esbuild because `@ai-tutor/todo-api-schema` ships TypeScript that node cannot load through a workspace link; `commander`, `better-auth` and `zod` stay external.
+- The session token lives in `hosts.json` (mode 0600, written through a temp file) keyed by server URL, under `AI_TUTOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/ai-tutor`, else the platform's config directory — and is never printed.
+- `AI_TUTOR_SERVER` overrides the default `http://localhost:3000`; exit code 4 means "sign in first" and 1 is every other failure.
+- No workspace has a `tsconfig.json` of its own: the root one covers the repo, so `next build` type-checks the CLI too.
+- `.agents/skills/ai-tutor-cli/` (with a Claude copy under `.claude/skills/`) is how an agent learns to drive the CLI; keep it and `--help` in step when the command surface changes.
 
 ## Agent — `lib/tutor.ts`, `components/chat.tsx`, `app/api/copilotkit/[...all]/`
 
@@ -81,9 +98,10 @@ AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra 
 - Mastra memory is durable in SQLite; the default `InMemoryAgentRunner` also keeps a shared bounded replay cache that can restore the browser transcript until eviction or server restart.
 - `@copilotkit/runtime` drags in a zod-3 dependency tree while Better Auth is on zod 4, which npm resolves by nesting the zod 3 copy under `@copilotkit/runtime/node_modules` — no `.npmrc` or `--legacy-peer-deps` is involved.
 
-## Tests — `tests/unit` (Vitest), `tests/e2e` (Playwright)
+## Tests — `tests/unit` + `tests/cli` (Vitest), `tests/e2e` (Playwright)
 
-- Vitest is jsdom + Testing Library and only picks up `tests/unit/**/*.test.{ts,tsx}`; async Server Components are unsupported there, so cover those with e2e instead.
+- `vitest.config.mts` defines two projects: `unit` (jsdom + Testing Library over `tests/unit/**/*.test.{ts,tsx}`) and `cli` (node, `tests/cli/**`); `npm test` runs both and `--project <name>` runs one.
+- Async Server Components are unsupported under jsdom, so cover those with e2e instead.
 - `vitest.config.mts` resolves `@/*` through Vite's native `resolve.tsconfigPaths`, so no `vite-tsconfig-paths` plugin is needed.
 - Playwright runs Chromium only against its own `next dev` on port 3100 (override with `E2E_PORT`).
 - `next dev` refuses to start twice against one dist dir, so `next.config.ts` reads `NEXT_DIST_DIR` and the e2e server sets it to `.next-e2e`; that dir also needs a `tsconfig.json` include entry, which `next dev` adds itself.
@@ -95,6 +113,8 @@ AI tutoring web app on Next.js 16 App Router + React 19 + Tailwind v4: a Mastra 
 - `tests/unit/todo-tools.test.ts` runs the real executors against a migrated temp database; `createTool` types `execute` as optional and unions in a validation error, so its `run` helper casts once rather than at every call.
 - `tests/e2e/todos.llm.spec.ts` is the only test that calls OpenRouter, so `playwright.config.ts` ignores `*.llm.spec.ts` unless `E2E_LLM` is set — `npm run test:e2e:llm`, not `npm run test:e2e`.
 - The chat composer sends on Enter and inserts a newline on Shift+Enter; e2e submits with `getByTestId("copilot-send-button")`.
+- `tests/cli/cli.test.ts` drives the built CLI against its own `next dev` (spare port, `.next-cli` dist dir, temp database, `XDG_CONFIG_HOME` redirected) and approves the device code with test-utils cookies instead of a browser; its global setup rebuilds `cli/dist` first.
+- That server is spawned with `NODE_ENV=development`, because under Vitest's `NODE_ENV=test` `next dev` rewrites this repo's `tsconfig.json` include patterns on every run.
 - `tests/unit/tutor.test.ts` mocks `server-only` (which otherwise resolves to its throwing build) and re-imports `lib/tutor` under `vi.resetModules()` to cover that reload split in both `NODE_ENV`s.
 
 ## Styling — `app/globals.css`, `postcss.config.mjs`

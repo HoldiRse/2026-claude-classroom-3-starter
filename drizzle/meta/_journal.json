@@ -29,6 +29,13 @@
       "when": 1789308764551,
       "tag": "0003_todos_created_at_ms",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789666781663,
+      "tag": "0004_freezing_sabretooth",
+      "breakpoints": true
     }
   ]
 }

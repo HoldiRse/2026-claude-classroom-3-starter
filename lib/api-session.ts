@@ -1,7 +1,7 @@
 import "server-only";
+import type { ErrorResponse } from "@ai-tutor/todo-api-schema";
 import type { z } from "zod";
 import { auth } from "@/lib/auth";
-import type { ErrorResponse } from "@/lib/todo-api-schema";
 
 /**
  * The session behind a /api/todos request. Reads accept the browser's cookie

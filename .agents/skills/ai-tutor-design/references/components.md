@@ -36,8 +36,9 @@ disabled:cursor-not-allowed disabled:opacity-60
 `button` is a role rather than a fixed `grey-700` because the dark theme has to
 lift the fill to `#5a5a5a` — `#464646` disappears into the `#323232` surface.
 
-A secondary button is the same geometry with
-`border border-edge bg-transparent text-ink hover:bg-raised`. There is no third
+`variant="secondary"` is the same geometry with
+`border border-edge bg-transparent text-ink hover:bg-raised`, for the lesser of
+two adjacent actions — Deny beside Approve on `/device`. There is no third
 button style; if you think you need one, you need a link.
 
 ## Link

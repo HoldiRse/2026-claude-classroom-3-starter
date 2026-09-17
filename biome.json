@@ -12,6 +12,7 @@
       "!node_modules",
       "!.next",
       "!.next-e2e",
+      "!.next-cli",
       "!.claude",
       "!.agents",
       "!public",

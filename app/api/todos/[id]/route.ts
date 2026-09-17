@@ -1,9 +1,9 @@
-import { apiSession, errorResponse, parseJsonBody } from "@/lib/api-session";
-import { db } from "@/lib/db";
 import {
   type TodoResponse,
   updateTodoRequestSchema,
-} from "@/lib/todo-api-schema";
+} from "@ai-tutor/todo-api-schema";
+import { apiSession, errorResponse, parseJsonBody } from "@/lib/api-session";
+import { db } from "@/lib/db";
 import { setTodoDoneFor } from "@/lib/todo-tools";
 
 /** Bearer only, like POST. Another user's id answers 404, as a missing one does. */

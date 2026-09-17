@@ -9,6 +9,20 @@ import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/form-error";
 import { authClient } from "@/lib/auth-client";
 
+/**
+ * `/device` sends unauthenticated users here with `?next=`; anything that is
+ * not a path on this app is ignored, so the parameter cannot bounce a
+ * freshly signed-in session off to another origin.
+ */
+function redirectTarget() {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next?.startsWith("/") &&
+    !next.startsWith("//") &&
+    !next.startsWith("/\\")
+    ? next
+    : "/";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +48,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/");
+    router.replace(redirectTarget());
     router.refresh();
   }
 

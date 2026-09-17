@@ -1,11 +1,17 @@
 import { z } from "zod";
 
 /**
- * The wire contract of /api/todos, shared by the route handlers and any client
- * in this repo (such as a CLI). Depends on zod alone, so a client can import it
- * without pulling in the database or the auth instance. The tutor's tools use
+ * The wire contract of /api/todos, shared by the route handlers and the
+ * `ai-tutor` CLI. Depends on zod alone, so a client can import it without
+ * pulling in the database or the auth instance. The tutor's tools use
  * `todoSchema` too, so the agent and the API report the same item shape.
  */
+
+/**
+ * The `client_id` the CLI sends through Better Auth's device authorization
+ * flow; the server's `validateClient` accepts no other.
+ */
+export const CLI_CLIENT_ID = "ai-tutor-cli";
 
 export const todoSchema = z.object({
   id: z.string(),

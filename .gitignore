@@ -1,7 +1,7 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -24,6 +24,9 @@
 
 # production
 /build
+
+# the ai-tutor CLI bundle (rebuilt by `npm install` and by the test suite)
+/cli/dist/
 
 # misc
 .DS_Store
@@ -52,3 +55,6 @@ next-env.d.ts
 
 # Claude Code worktrees
 /.claude/worktrees/
+
+# dev server the CLI integration test starts
+/.next-cli/
