@@ -32,7 +32,9 @@
     ".next-e2e/types/**/*.ts",
     ".next-e2e/dev/types/**/*.ts",
     ".next-cli/types/**/*.ts",
-    ".next-cli/dev/types/**/*.ts"
+    ".next-cli/dev/types/**/*.ts",
+    ".next-mcp/types/**/*.ts",
+    ".next-mcp/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", ".next-e2e", ".next-cli", ".next-mcp"]
 }

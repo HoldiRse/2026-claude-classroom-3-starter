@@ -71,9 +71,12 @@ The repo is an npm workspace root: the web app is this directory, `cli/` is the 
 
 ## CLI — `cli/`, `packages/todo-api-schema/`
 
-- `cli/src/ai-tutor.ts` is the whole command surface (`login`, `whoami`, `logout`, `add`, `list`, `done`) on commander, and its `--help` is the CLI's documentation — keep it good enough to drive the tool from that alone.
+- `cli/src/ai-tutor.ts` is the whole command surface (`login`, `whoami`, `logout`, `add`, `list`, `done`, `mcp`) on commander, and its `--help` is the CLI's documentation — keep it good enough to drive the tool from that alone.
 - `cli/bin/ai-tutor.js` is a committed wrapper around the generated `cli/dist/ai-tutor.js`, so `npm install` can link the bin before the `prepare` script has built anything.
-- `cli/build.mjs` bundles with esbuild because `@ai-tutor/todo-api-schema` ships TypeScript that node cannot load through a workspace link; `commander`, `better-auth` and `zod` stay external.
+- `cli/build.mjs` bundles with esbuild because `@ai-tutor/todo-api-schema` ships TypeScript that node cannot load through a workspace link; `commander`, `better-auth`, `zod` and `@modelcontextprotocol/server` stay external.
+- `ai-tutor mcp --stdio` serves `cli/src/mcp.ts` — the todo commands as MCP tools (`list_todos`, `add_todo`, `mark_todo_done`) whose input and output schemas are the shared contract's — and `docs/mcp.md` is how a user registers it with Claude Code.
+- That server starts without a stored token and reads one per tool call, so registering it before `ai-tutor login` works and a later login needs no restart; a tool without a token answers an `isError` result saying so.
+- Nothing in `cli/src/mcp.ts` may write to stdout, which carries the protocol — a stray line ends the connection.
 - The session token lives in `hosts.json` (mode 0600, written through a temp file) keyed by server URL, under `AI_TUTOR_CONFIG_DIR`, else `$XDG_CONFIG_HOME/ai-tutor`, else the platform's config directory — and is never printed.
 - `AI_TUTOR_SERVER` overrides the default `http://localhost:3000`; exit code 4 means "sign in first" and 1 is every other failure.
 - No workspace has a `tsconfig.json` of its own: the root one covers the repo, so `next build` type-checks the CLI too.
@@ -105,6 +108,7 @@ The repo is an npm workspace root: the web app is this directory, `cli/` is the 
 - `vitest.config.mts` resolves `@/*` through Vite's native `resolve.tsconfigPaths`, so no `vite-tsconfig-paths` plugin is needed.
 - Playwright runs Chromium only against its own `next dev` on port 3100 (override with `E2E_PORT`).
 - `next dev` refuses to start twice against one dist dir, so `next.config.ts` reads `NEXT_DIST_DIR` and the e2e server sets it to `.next-e2e`; that dir also needs a `tsconfig.json` include entry, which `next dev` adds itself.
+- `tsconfig.json` excludes `.next-e2e`, `.next-cli` and `.next-mcp` again, because otherwise `next build` type-checks the generated validator a killed test server left half-written; `next dev` also reformats the file when it adds a new dist dir, so re-run `npm run format` after adding one.
 - The `.test.ts` files in `tests/unit` select the node environment, while `todo-tool-calls.test.tsx` uses jsdom; the db, auth, tutor, and todos-api tests point at a temp file, so they never touch `data/app.db`.
 - `tests/unit/todos-api.test.ts` stubs `server-only` and `DATABASE_URL`/`BETTER_AUTH_SECRET` before importing the real route handlers, and mints tokens with `testUtils().login` from a second instance on the same file and secret.
 - The auth test builds its own instance from `authOptions` with the `testUtils()` plugin and an explicit `secret`/`baseURL`, because Vitest does not load `.env`.
@@ -113,8 +117,11 @@ The repo is an npm workspace root: the web app is this directory, `cli/` is the 
 - `tests/unit/todo-tools.test.ts` runs the real executors against a migrated temp database; `createTool` types `execute` as optional and unions in a validation error, so its `run` helper casts once rather than at every call.
 - `tests/e2e/todos.llm.spec.ts` is the only test that calls OpenRouter, so `playwright.config.ts` ignores `*.llm.spec.ts` unless `E2E_LLM` is set — `npm run test:e2e:llm`, not `npm run test:e2e`.
 - The chat composer sends on Enter and inserts a newline on Shift+Enter; e2e submits with `getByTestId("copilot-send-button")`.
-- `tests/cli/cli.test.ts` drives the built CLI against its own `next dev` (spare port, `.next-cli` dist dir, temp database, `XDG_CONFIG_HOME` redirected) and approves the device code with test-utils cookies instead of a browser; its global setup rebuilds `cli/dist` first.
+- `tests/cli/todo-server.ts` is the harness both CLI suites call: its own `next dev` (spare port, per-suite dist dir, temp database, `XDG_CONFIG_HOME` redirected), a signed-up user, and a device login it approves with test-utils cookies instead of a browser; the project's global setup rebuilds `cli/dist` first.
+- Each suite passes its own `distDir` (`.next-cli`, `.next-mcp`) because `next dev` refuses to start twice against one dist dir and Vitest may run them side by side.
 - That server is spawned with `NODE_ENV=development`, because under Vitest's `NODE_ENV=test` `next dev` rewrites this repo's `tsconfig.json` include patterns on every run.
+- `tests/cli/cli.test.ts` drives the built CLI command by command, in order, on the one session — the last tests log out and check that the token stops working.
+- `tests/cli/mcp.test.ts` spawns `ai-tutor mcp --stdio` from the MCP client SDK and drives the tools over the protocol, on one connection that spans the sign-in; the connection surviving is what proves stdout stayed clean.
 - `tests/unit/tutor.test.ts` mocks `server-only` (which otherwise resolves to its throwing build) and re-imports `lib/tutor` under `vi.resetModules()` to cover that reload split in both `NODE_ENV`s.
 
 ## Styling — `app/globals.css`, `postcss.config.mjs`

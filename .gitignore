@@ -58,3 +58,6 @@ next-env.d.ts
 
 # dev server the CLI integration test starts
 /.next-cli/
+
+# dev server the MCP integration test starts
+/.next-mcp/

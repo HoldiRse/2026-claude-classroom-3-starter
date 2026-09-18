@@ -16,7 +16,14 @@ export async function build() {
     platform: "node",
     format: "esm",
     target: "node22",
-    external: ["commander", "better-auth", "better-auth/*", "zod"],
+    external: [
+      "commander",
+      "better-auth",
+      "better-auth/*",
+      "zod",
+      "@modelcontextprotocol/server",
+      "@modelcontextprotocol/server/*",
+    ],
     logLevel: "warning",
   });
 }

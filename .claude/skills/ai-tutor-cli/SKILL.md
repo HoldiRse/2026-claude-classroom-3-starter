@@ -46,6 +46,13 @@ npx ai-tutor done 8f0c2c31-2f38-4d3e-9a0e-2c0b  # the id that `list` prints
 npx ai-tutor logout                             # revokes the session, deletes the token
 ```
 
+If this repository's MCP server is registered, the same three operations are
+already in your tool list as `mcp__ai-tutor__list_todos`,
+`mcp__ai-tutor__add_todo` and `mcp__ai-tutor__mark_todo_done` — use those
+instead of shelling out, and read them the same way this page reads the
+commands. They carry the same token, so an error naming `ai-tutor login` means
+the same thing as exit code 4. `docs/mcp.md` is how the user registers it.
+
 Add `--json` to any of them when you want to parse rather than display the
 result — `list --json` gives `{"todos":[{"id":…,"title":…,"done":…}]}`, which
 is the reliable way to pick an id out before calling `done`.

@@ -22,7 +22,12 @@ export type Todo = z.infer<typeof todoSchema>;
 
 /** `GET /api/todos?q=milk` — `q` keeps items whose title contains it, ignoring case. */
 export const listTodosQuerySchema = z.object({
-  q: z.string().trim().min(1).optional(),
+  q: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe("keep only todos whose title contains this text, ignoring case"),
 });
 export type ListTodosQuery = z.infer<typeof listTodosQuerySchema>;
 
@@ -33,13 +38,19 @@ export type ListTodosResponse = z.infer<typeof listTodosResponseSchema>;
 
 /** `POST /api/todos` — answers 201 with the new item. */
 export const createTodoRequestSchema = z.object({
-  title: z.string().trim().min(1),
+  title: z.string().trim().min(1).describe("what the todo says"),
 });
 export type CreateTodoRequest = z.infer<typeof createTodoRequestSchema>;
 
+/** The `{id}` of `PATCH /api/todos/{id}`, as `GET /api/todos` reports it. */
+export const todoIdParamSchema = z.object({
+  id: z.string().trim().min(1).describe("the id of an existing todo"),
+});
+export type TodoIdParam = z.infer<typeof todoIdParamSchema>;
+
 /** `PATCH /api/todos/{id}` — `done: false` reopens the item. */
 export const updateTodoRequestSchema = z.object({
-  done: z.boolean(),
+  done: z.boolean().describe("true marks the todo done, false reopens it"),
 });
 export type UpdateTodoRequest = z.infer<typeof updateTodoRequestSchema>;
 

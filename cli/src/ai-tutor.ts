@@ -17,6 +17,7 @@ import {
   writeToken,
 } from "./config";
 import { CliError, NotLoggedInError } from "./errors";
+import { serveMcpOverStdio } from "./mcp";
 
 const out = (line = "") => process.stdout.write(`${line}\n`);
 const printJson = (value: unknown) => out(JSON.stringify(value, null, 2));
@@ -72,6 +73,7 @@ Examples:
   $ ai-tutor list --query milk
   $ ai-tutor done 8f0c2c31-2f38-4d3e-9a0e-2c0b9f8a1d77
   $ ai-tutor list --json | jq '.todos[] | select(.done == false)'
+  $ ai-tutor mcp --stdio
 `,
   );
 
@@ -210,6 +212,28 @@ Each line is \`[ ] <id>  <title>\`, where [x] marks a done item and <id> is what
       return;
     }
     for (const todo of todos) out(formatTodo(todo));
+  });
+
+program
+  .command("mcp")
+  .description("serve these commands to an MCP client as tools")
+  .option("--stdio", "speak MCP over stdin and stdout (the only transport)")
+  .addHelpText(
+    "after",
+    `
+For an editor or agent that speaks the Model Context Protocol: it spawns
+\`ai-tutor mcp --stdio\` and gets list_todos, add_todo and mark_todo_done. The
+tools use the same stored token as the commands above, so sign in first — a
+tool called without one answers with an error saying so rather than failing the
+connection. stdout carries the protocol and nothing else.
+
+See docs/mcp.md in the repository for registering it with Claude Code.`,
+  )
+  .action(({ stdio }: { stdio?: boolean }) => {
+    if (!stdio) {
+      throw new CliError("`ai-tutor mcp` needs --stdio");
+    }
+    serveMcpOverStdio();
   });
 
 program
